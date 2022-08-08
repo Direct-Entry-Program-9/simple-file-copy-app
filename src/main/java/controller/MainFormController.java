@@ -79,20 +79,26 @@ public class MainFormController {
             }
         }
 
+        /* Why do we need a new thread here? Do you have an answer for that? */
         new Thread(()->{
             try {
                 FileInputStream fis = new FileInputStream(srcFile);
                 FileOutputStream fos = new FileOutputStream(destFile);
 
-                //int[] byteBuffer = new int[(int) srcFile.length()];
                 long fileSize = srcFile.length();
                 for (int i = 0; i < fileSize; i++) {
                     int readByte = fis.read();
                     fos.write(readByte);
-                    int k = i;
+                    int k = i;  // <- Don't think about this line yet, we will cover it very soon
+
+                    /*
+                     * What is the deal with Platform.runLater()? Why do we need it?
+                     * What happens if we remove it? Does the code still work?
+                     * Remove (Unwrap) the Platform.runLater() code block, Does it work?
+                     */
                     Platform.runLater(()->{
                         pgbBar.setWidth(pgbContainer.getWidth() / fileSize * k);
-                        lblProgress.setText("Progress: " + ((k / fileSize) * 100.0) + "%");
+                        lblProgress.setText("Progress: " + (k * 1.0 / fileSize * 100) + "%");
                         lblSize.setText((k / 1024.0) + " / " + (fileSize / 1024.0) + " Kb");
                     });
                 }
@@ -103,6 +109,7 @@ public class MainFormController {
                 throw new RuntimeException(e);
             }
 
+            /* Here again, why do we need this Platform.runLater() shit? */
             Platform.runLater(()->{
                 pgbBar.setWidth(pgbContainer.getWidth());
                 new Alert(Alert.AlertType.INFORMATION, "File has been copied successfully").show();
