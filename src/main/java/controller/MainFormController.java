@@ -1,6 +1,7 @@
 package controller;
 
 import com.jfoenix.controls.JFXButton;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -65,7 +66,6 @@ public class MainFormController {
     }
 
     public void btnCopyOnAction(ActionEvent actionEvent) throws IOException {
-        FileInputStream fis = new FileInputStream(srcFile);
 
         File destFile = new File(destDir, srcFile.getName());
         if (!destFile.exists()) {
@@ -79,23 +79,39 @@ public class MainFormController {
             }
         }
 
-        FileOutputStream fos = new FileOutputStream(destFile);
+        new Thread(()->{
+            try {
+                FileInputStream fis = new FileInputStream(srcFile);
+                FileOutputStream fos = new FileOutputStream(destFile);
 
-        int[] byteBuffer = new int[(int) srcFile.length()];
-        for (int i = 0; i < byteBuffer.length; i++) {
-            byteBuffer[i] = fis.read();
-            fos.write(byteBuffer[i]);
-        }
+                //int[] byteBuffer = new int[(int) srcFile.length()];
+                long fileSize = srcFile.length();
+                for (int i = 0; i < fileSize; i++) {
+                    int readByte = fis.read();
+                    fos.write(readByte);
+                    int k = i;
+                    Platform.runLater(()->{
+                        pgbBar.setWidth(pgbContainer.getWidth() / fileSize * k);
+                        lblProgress.setText("Progress: " + ((k / fileSize) * 100.0) + "%");
+                        lblSize.setText((k / 1024.0) + " / " + (fileSize / 1024.0) + " Kb");
+                    });
+                }
 
-        fos.close();
-        fis.close();
+                fos.close();
+                fis.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
-        new Alert(Alert.AlertType.INFORMATION, "File has been copied successfully").show();
-        srcFile = null;
-        destDir = null;
-        lblFolder.setText("No folder selected");
-        lblFile.setText("No file selected");
-        btnCopy.setDisable(true);
-
+            Platform.runLater(()->{
+                pgbBar.setWidth(pgbContainer.getWidth());
+                new Alert(Alert.AlertType.INFORMATION, "File has been copied successfully").show();
+                lblFolder.setText("No folder selected");
+                lblFile.setText("No file selected");
+                btnCopy.setDisable(true);
+                srcFile = null;
+                destDir = null;
+            });
+        }).start();
     }
 }
