@@ -1,7 +1,6 @@
 package controller;
 
 import com.jfoenix.controls.JFXButton;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
@@ -15,10 +14,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.text.NumberFormat;
 import java.util.Optional;
 
@@ -94,17 +90,24 @@ public class MainFormController {
             protected Void call() throws Exception {
                 FileInputStream fis = new FileInputStream(srcFile);
                 FileOutputStream fos = new FileOutputStream(destFile);
+                BufferedInputStream bis = new BufferedInputStream(fis);
+                BufferedOutputStream bos = new BufferedOutputStream(fos);
 
                 long fileSize = srcFile.length();
-                for (int i = 0; i < fileSize; i++) {
-                    int readByte = fis.read();
-                    fos.write(readByte);
-                    updateProgress(i, fileSize);    /* updateProgress(workDone, totalWork) */
+                int totalRead = 0;
+                while(true) {
+                    byte[] buffer = new byte[1024 * 10];        // 10 Kb
+                    int read = bis.read(buffer);
+                    totalRead += read;
+                    if (read == -1) break;
+                    bos.write(buffer, 0, read);
+                    updateProgress(totalRead, fileSize);
                 }
 
                 updateProgress(fileSize, fileSize);
-                fos.close();
-                fis.close();
+
+                bos.close();
+                bis.close();
 
                 return null;
             }
@@ -138,7 +141,7 @@ public class MainFormController {
         new Thread(task).start();
     }
 
-    private String formatNumber(double input){
+    private String formatNumber(double input) {
         NumberFormat ni = NumberFormat.getNumberInstance();
         ni.setGroupingUsed(true);
         ni.setMinimumFractionDigits(2);
