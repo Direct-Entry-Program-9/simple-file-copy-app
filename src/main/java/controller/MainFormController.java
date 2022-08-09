@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.util.Optional;
 
 public class MainFormController {
@@ -47,7 +48,7 @@ public class MainFormController {
 
         srcFile = fileChooser.showOpenDialog(lblFolder.getScene().getWindow());
         if (srcFile != null) {
-            lblFile.setText(srcFile.getName() + ". " + (srcFile.length() / 1024.0) + "Kb");
+            lblFile.setText(srcFile.getName() + ". " + formatNumber(srcFile.length() / 1024.0) + " Kb");
         } else {
             lblFile.setText("No file selected");
         }
@@ -88,7 +89,7 @@ public class MainFormController {
         /* 1. First we implement Task abstract class -> Anonymous Inner Class */
         /* 2. Then we create an object from the newly implemented class */
         /* 3. Lastly we store the object memory location */
-        var task = new Task<Void>() /* class Annon extends Task<Void>*/{    // <- Don't worry about this wired syntax yet
+        var task = new Task<Void>() /* class Anonymous extends Task<Void>*/ {    // <- Don't worry about this wired syntax yet
             @Override
             protected Void call() throws Exception {
                 FileInputStream fis = new FileInputStream(srcFile);
@@ -101,6 +102,7 @@ public class MainFormController {
                     updateProgress(i, fileSize);    /* updateProgress(workDone, totalWork) */
                 }
 
+                updateProgress(fileSize, fileSize);
                 fos.close();
                 fis.close();
 
@@ -112,8 +114,8 @@ public class MainFormController {
             @Override
             public void changed(ObservableValue<? extends Number> observableValue, Number prevWork, Number curWork) {
                 pgbBar.setWidth(pgbContainer.getWidth() / task.getTotalWork() * curWork.doubleValue());
-                lblProgress.setText("Progress: " + (task.getProgress() * 100) + "%");
-                lblSize.setText((task.getWorkDone() / 1024.0) + " / " + (task.getTotalWork() / 1024.0) + " Kb");
+                lblProgress.setText("Progress: " + formatNumber(task.getProgress() * 100) + "%");
+                lblSize.setText(formatNumber(task.getWorkDone() / 1024.0) + " / " + formatNumber(task.getTotalWork() / 1024.0) + " Kb");
             }
         });
 
@@ -134,5 +136,13 @@ public class MainFormController {
         });
 
         new Thread(task).start();
+    }
+
+    private String formatNumber(double input){
+        NumberFormat ni = NumberFormat.getNumberInstance();
+        ni.setGroupingUsed(true);
+        ni.setMinimumFractionDigits(2);
+        ni.setMaximumFractionDigits(2);
+        return ni.format(input);
     }
 }
