@@ -2,7 +2,12 @@ package controller;
 
 import com.jfoenix.controls.JFXButton;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
@@ -79,9 +84,13 @@ public class MainFormController {
             }
         }
 
-        /* Why do we need a new thread here? Do you have an answer for that? */
-        new Thread(()->{
-            try {
+        /* Task class is a java fx specific thing, we can't use anywhere else */
+        /* 1. First we implement Task abstract class -> Anonymous Inner Class */
+        /* 2. Then we create an object from the newly implemented class */
+        /* 3. Lastly we store the object memory location */
+        var task = new Task<Void>() /* class Annon extends Task<Void>*/{    // <- Don't worry about this wired syntax yet
+            @Override
+            protected Void call() throws Exception {
                 FileInputStream fis = new FileInputStream(srcFile);
                 FileOutputStream fos = new FileOutputStream(destFile);
 
@@ -89,36 +98,41 @@ public class MainFormController {
                 for (int i = 0; i < fileSize; i++) {
                     int readByte = fis.read();
                     fos.write(readByte);
-                    int k = i;  // <- Don't think about this line yet, we will cover it very soon
-
-                    /*
-                     * What is the deal with Platform.runLater()? Why do we need it?
-                     * What happens if we remove it? Does the code still work?
-                     * Remove (Unwrap) the Platform.runLater() code block, Does it work?
-                     */
-                    Platform.runLater(()->{
-                        pgbBar.setWidth(pgbContainer.getWidth() / fileSize * k);
-                        lblProgress.setText("Progress: " + (k * 1.0 / fileSize * 100) + "%");
-                        lblSize.setText((k / 1024.0) + " / " + (fileSize / 1024.0) + " Kb");
-                    });
+                    updateProgress(i, fileSize);    /* updateProgress(workDone, totalWork) */
                 }
 
                 fos.close();
                 fis.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
 
-            /* Here again, why do we need this Platform.runLater() shit? */
-            Platform.runLater(()->{
+                return null;
+            }
+        };
+
+        task.workDoneProperty().addListener(new ChangeListener<Number>() {
+            @Override
+            public void changed(ObservableValue<? extends Number> observableValue, Number prevWork, Number curWork) {
+                pgbBar.setWidth(pgbContainer.getWidth() / task.getTotalWork() * curWork.doubleValue());
+                lblProgress.setText("Progress: " + (task.getProgress() * 100) + "%");
+                lblSize.setText((task.getWorkDone() / 1024.0) + " / " + (task.getTotalWork() / 1024.0) + " Kb");
+            }
+        });
+
+        task.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+            @Override
+            public void handle(WorkerStateEvent workerStateEvent) {
                 pgbBar.setWidth(pgbContainer.getWidth());
-                new Alert(Alert.AlertType.INFORMATION, "File has been copied successfully").show();
+                new Alert(Alert.AlertType.INFORMATION, "File has been copied successfully").showAndWait();
                 lblFolder.setText("No folder selected");
                 lblFile.setText("No file selected");
                 btnCopy.setDisable(true);
+                pgbBar.setWidth(0);
+                lblProgress.setText("Progress: 0%");
+                lblSize.setText("0 / 0 Kb");
                 srcFile = null;
                 destDir = null;
-            });
-        }).start();
+            }
+        });
+
+        new Thread(task).start();
     }
 }
